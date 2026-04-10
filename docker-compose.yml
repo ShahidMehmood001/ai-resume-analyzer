@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: resume_user
+      POSTGRES_PASSWORD: resume_pass
+      POSTGRES_DB: resume_analyzer
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://resume_user:resume_pass@postgres:5432/resume_analyzer
+      NODE_ENV: development
+      AI_PROVIDER: gemini
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      FRONTEND_URL: http://localhost:3000
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
