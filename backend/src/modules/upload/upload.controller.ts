@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   UseInterceptors,
   UploadedFiles,
   Param,
@@ -8,7 +9,6 @@ import {
   Logger,
   HttpException,
   HttpStatus,
-  Get,
 } from "@nestjs/common";
 import { FilesInterceptor } from "@nestjs/platform-express";
 import {
@@ -44,13 +44,10 @@ export class UploadController {
   @ApiOperation({
     summary: "Batch upload PDF resumes",
     description:
-      "Upload up to 10 PDF resumes at once. Each file is parsed in the background. Use the returned resumeId(s) to trigger SSE extraction.",
+      "Upload up to 10 PDF resumes. Files are parsed in the background. Use the returned resumeId(s) to trigger AI extraction via SSE.",
   })
   @ApiConsumes("multipart/form-data")
-  @ApiBody({
-    description: "PDF resume files",
-    type: UploadResumesDto,
-  })
+  @ApiBody({ description: "PDF resume files", type: UploadResumesDto })
   @ApiResponse({
     status: 201,
     description: "Files accepted and queued for parsing",
@@ -58,40 +55,33 @@ export class UploadController {
       example: {
         uploaded: 2,
         files: [
-          { resumeId: "uuid-1", filename: "john_doe.pdf", status: "processing" },
-          { resumeId: "uuid-2", filename: "jane_smith.pdf", status: "processing" },
+          { resumeId: "uuid-1", filename: "john.pdf", status: "processing" },
         ],
       },
     },
   })
-  @ApiResponse({ status: 400, description: "No files uploaded or invalid format" })
+  @ApiResponse({ status: 400, description: "No files or invalid format" })
   async uploadResumes(@UploadedFiles() files: Express.Multer.File[]) {
     if (!files || files.length === 0) {
       throw new HttpException("No files uploaded", HttpStatus.BAD_REQUEST);
     }
-    this.logger.log(`Received ${files.length} file(s) for upload`);
+    this.logger.log("Received " + files.length + " file(s) for upload");
     return this.uploadService.processUploadedFiles(files);
   }
 
-  @Post("resumes/:resumeId/extract")
+  /**
+   * SSE MUST be GET — EventSource (browser native API) only supports GET requests.
+   * The client opens this as: new EventSource('/api/upload/resumes/:id/extract')
+   */
+  @Get("resumes/:resumeId/extract")
   @ApiOperation({
-    summary: "Stream AI extraction via SSE",
+    summary: "Stream AI extraction via SSE (GET — required for EventSource)",
     description:
-      "Opens a Server-Sent Events stream. The AI progressively extracts structured data from the parsed PDF text. Events: `start`, `chunk`, `complete`, `error`, `[DONE]`.",
+      "Opens a Server-Sent Events stream. Events: start, chunk, complete, error, [DONE]. " +
+      "This MUST be GET because the browser EventSource API only supports GET.",
   })
-  @ApiParam({ name: "resumeId", description: "UUID returned from the upload endpoint" })
-  @ApiResponse({
-    status: 200,
-    description: "SSE stream — text/event-stream",
-    content: {
-      "text/event-stream": {
-        schema: {
-          type: "string",
-          example: "data: {type:start} ... data: {type:chunk} ... data: {type:complete} ... data: [DONE]",
-        },
-      },
-    },
-  })
+  @ApiParam({ name: "resumeId", description: "Resume UUID from upload response" })
+  @ApiResponse({ status: 200, description: "SSE stream — text/event-stream" })
   @ApiResponse({ status: 404, description: "Resume not found or not yet parsed" })
   async streamExtract(
     @Param("resumeId") resumeId: string,
@@ -108,9 +98,7 @@ export class UploadController {
     } catch (err) {
       this.logger.error("SSE extraction failed", err);
       res.write(
-        `data: ${JSON.stringify({ type: "error", message: "Extraction failed" })}
-
-`,
+        "data: " + JSON.stringify({ type: "error", message: "Extraction failed" }) + "\n\n",
       );
       res.end();
     }
@@ -119,13 +107,6 @@ export class UploadController {
   @Get("resumes/:resumeId/status")
   @ApiOperation({ summary: "Poll resume processing status" })
   @ApiParam({ name: "resumeId", description: "Resume UUID" })
-  @ApiResponse({
-    status: 200,
-    description: "Current status of the resume",
-    schema: {
-      example: { resumeId: "uuid", status: "done", candidateId: "uuid" },
-    },
-  })
   async getStatus(@Param("resumeId") resumeId: string) {
     return this.uploadService.getResumeStatus(resumeId);
   }

@@ -5,9 +5,20 @@ import { Resume, ResumeStatus } from "./entities/resume.entity";
 import { ResumeScore } from "./entities/resume-score.entity";
 import { Candidate } from "../candidates/entities/candidate.entity";
 import { ExtractedResumeData } from "../ai/ai-provider.interface";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pdfParse = require("pdf-parse");
 import { readFileSync } from "fs";
+
+// Safely import pdf-parse — handles both v1 (function) and v2 (class-based)
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParseModule = require("pdf-parse");
+const pdfParse: (buffer: Buffer) => Promise<{ text: string }> =
+  typeof pdfParseModule === "function"
+    ? pdfParseModule
+    : pdfParseModule.default ?? pdfParseModule.PDFParse
+    ? async (buf: Buffer) => {
+        const parser = new pdfParseModule.PDFParse();
+        return parser.parse(buf);
+      }
+    : pdfParseModule;
 
 @Injectable()
 export class ResumesService {
@@ -20,7 +31,9 @@ export class ResumesService {
   ) {}
 
   async createFromFile(file: Express.Multer.File): Promise<Resume> {
-    const candidate = this.candidateRepo.create({ name: file.originalname.replace(".pdf", "") });
+    const candidate = this.candidateRepo.create({
+      name: file.originalname.replace(/\.pdf$/i, ""),
+    });
     await this.candidateRepo.save(candidate);
 
     const resume = this.resumeRepo.create({
@@ -53,7 +66,10 @@ export class ResumesService {
   }
 
   async saveExtractedData(resumeId: string, data: ExtractedResumeData): Promise<void> {
-    const resume = await this.resumeRepo.findOne({ where: { id: resumeId }, relations: ["candidate"] });
+    const resume = await this.resumeRepo.findOne({
+      where: { id: resumeId },
+      relations: ["candidate"],
+    });
     if (!resume?.candidate) return;
 
     const candidate = resume.candidate;
@@ -73,14 +89,24 @@ export class ResumesService {
   }
 
   async findOne(id: string): Promise<Resume | null> {
-    return this.resumeRepo.findOne({ where: { id }, relations: ["candidate", "scores"] });
+    return this.resumeRepo.findOne({
+      where: { id },
+      relations: ["candidate", "scores"],
+    });
   }
 
   async findAll() {
-    return this.resumeRepo.find({ relations: ["candidate"], order: { createdAt: "DESC" } });
+    return this.resumeRepo.find({
+      relations: ["candidate"],
+      order: { createdAt: "DESC" },
+    });
   }
 
-  async saveScore(resumeId: string, jobId: string, scoreData: Omit<ResumeScore, "id" | "resume" | "job" | "createdAt">) {
+  async saveScore(
+    resumeId: string,
+    jobId: string,
+    scoreData: Omit<ResumeScore, "id" | "resume" | "job" | "createdAt">,
+  ) {
     const score = this.scoreRepo.create({ ...scoreData, resumeId, jobId });
     return this.scoreRepo.save(score);
   }
