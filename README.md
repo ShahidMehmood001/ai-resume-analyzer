@@ -147,18 +147,23 @@ npm run dev
 
 ## Deployment
 
-### Backend → Railway
-1. Create a new project on [railway.app](https://railway.app)
-2. Add a PostgreSQL service — Railway provides `DATABASE_URL` automatically
-3. Deploy from GitHub (`/backend` root directory)
-4. Set environment variables in Railway dashboard:
+### Backend → Render.com
+1. Create a new account on [render.com](https://render.com)
+2. Click **New → Web Service** → connect your GitHub repo
+3. Set **Root Directory** to `backend`
+4. Build command: `npm install && npm run build`
+5. Start command: `npm run start:prod`
+6. Create a **PostgreSQL** database on Render (free tier available) — Render provides `DATABASE_URL` automatically
+7. Set environment variables in the Render dashboard:
    ```
+   NODE_ENV=production
    AI_PROVIDER=gemini
    GEMINI_API_KEY=your_key
    FRONTEND_URL=https://your-frontend.vercel.app
-   NODE_ENV=production
+   PORT=10000
    ```
-5. Railway will auto-detect Node.js and run `npm run start:prod`
+
+Alternatively, use the included `render.yaml` — Render will auto-detect it and configure both the web service and database automatically.
 
 ### Frontend → Vercel
 1. Import the repository on [vercel.com](https://vercel.com)

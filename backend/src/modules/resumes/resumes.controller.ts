@@ -1,5 +1,7 @@
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from "@nestjs/swagger";
-import { Controller, Get, Param, Delete, HttpCode } from "@nestjs/common";
+import {
+  Controller, Get, Param, Delete, HttpCode, HttpStatus,
+} from "@nestjs/common";
+import { ApiTags, ApiOperation, ApiParam, ApiResponse } from "@nestjs/swagger";
 import { ResumesService } from "./resumes.service";
 
 @ApiTags("resumes")
@@ -9,9 +11,15 @@ export class ResumesController {
 
   @Get()
   @ApiOperation({ summary: "List all resumes" })
-  findAll() { return this.resumesService.findAll(); }
+  findAll() {
+    return this.resumesService.findAll();
+  }
 
   @Get(":id")
-  @ApiOperation({ summary: "Get resume by ID" })
-  findOne(@Param("id") id: string) { return this.resumesService.findOne(id); }
+  @ApiOperation({ summary: "Get resume by ID (includes candidate and scores)" })
+  @ApiParam({ name: "id", description: "Resume UUID" })
+  @ApiResponse({ status: 404, description: "Not found" })
+  findOne(@Param("id") id: string) {
+    return this.resumesService.findOne(id);
+  }
 }
