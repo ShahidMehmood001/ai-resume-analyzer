@@ -27,15 +27,55 @@ export class GeminiProvider implements AIProvider {
   ): Promise<ExtractedResumeData> {
     const model = this.client.getGenerativeModel({ model: this.model });
     const prompt = this.buildExtractionPrompt(text);
-    const stream = await model.generateContentStream(prompt);
+    let fullText = "";
+    let lastError: unknown = null;
 
-    let fullText = '';
-    for await (const chunk of stream.stream) {
-      const part = chunk.text();
-      fullText += part;
-      onChunk(part);
+    // Retry transient network failures before falling back to non-streaming.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const stream = await model.generateContentStream(prompt);
+        fullText = "";
+        for await (const chunk of stream.stream) {
+          const part = chunk.text();
+          fullText += part;
+          onChunk(part);
+        }
+        return this.parseJSON<ExtractedResumeData>(fullText);
+      } catch (err) {
+        lastError = err;
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(
+          `Gemini stream extraction attempt ${attempt} failed: ${message}`,
+        );
+        if (attempt < 2) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
     }
-    return this.parseJSON<ExtractedResumeData>(fullText);
+
+    this.logger.warn(
+      "Gemini stream extraction failed after retries, falling back to non-streaming extraction.",
+    );
+    try {
+      const result = await model.generateContent(prompt);
+      const fallbackText = result.response.text();
+      onChunk(fallbackText);
+      return this.parseJSON<ExtractedResumeData>(fallbackText);
+    } catch (fallbackError) {
+      const message =
+        fallbackError instanceof Error
+          ? fallbackError.message
+          : "Gemini request failed";
+      const rootCause =
+        lastError instanceof Error
+          ? lastError.message
+          : fallbackError instanceof Error
+            ? fallbackError.message
+            : "unknown";
+      throw new Error(
+        `Gemini extraction failed (stream + fallback): ${message}. Root cause: ${rootCause}`,
+      );
+    }
   }
 
   async scoreResumeAgainstJob(

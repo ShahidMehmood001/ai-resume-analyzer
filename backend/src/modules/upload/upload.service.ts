@@ -58,20 +58,36 @@ export class UploadService {
       res.write("data: " + JSON.stringify({ type, data }) + "\n\n");
     };
 
-    await this.resumesService.updateStatus(resumeId, ResumeStatus.EXTRACTING);
-    sendEvent("start", { resumeId });
-
-    const extractedData = await this.aiService.streamExtractResumeData(
-      rawText,
-      (chunk) => sendEvent("chunk", { chunk }),
+    await this.resumesService.updateStatus(
+      resumeId,
+      ResumeStatus.EXTRACTING,
+      null,
     );
+    sendEvent("start", { resumeId });
+    try {
+      const extractedData = await this.aiService.streamExtractResumeData(
+        rawText,
+        (chunk) => sendEvent("chunk", { chunk }),
+      );
 
-    await this.resumesService.saveExtractedData(resumeId, extractedData);
-    await this.resumesService.updateStatus(resumeId, ResumeStatus.DONE);
+      await this.resumesService.saveExtractedData(resumeId, extractedData);
+      await this.resumesService.updateStatus(resumeId, ResumeStatus.DONE, null);
 
-    sendEvent("complete", { extractedData });
-    res.write("data: [DONE]\n\n");
-    res.end();
+      sendEvent("complete", { extractedData });
+      res.write("data: [DONE]\n\n");
+      res.end();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "AI extraction failed";
+      this.logger.error(`AI extraction failed for resume ${resumeId}`, err);
+      await this.resumesService.updateStatus(
+        resumeId,
+        ResumeStatus.FAILED,
+        message,
+      );
+      sendEvent("error", { message });
+      res.end();
+    }
   }
 
   async getResumeStatus(resumeId: string) {

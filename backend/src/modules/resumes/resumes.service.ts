@@ -48,6 +48,7 @@ export class ResumesService {
 
   async parseResumePdf(resumeId: string): Promise<void> {
     const resume = await this.resumeRepo.findOne({ where: { id: resumeId } });
+    this.logger.log(`Resume =======> ${resumeId} found: ${JSON.stringify(resume)}`);
     if (!resume) return;
 
     try {
@@ -84,8 +85,12 @@ export class ResumesService {
     await this.candidateRepo.save(candidate);
   }
 
-  async updateStatus(resumeId: string, status: ResumeStatus): Promise<void> {
-    await this.resumeRepo.update(resumeId, { status });
+  async updateStatus(
+    resumeId: string,
+    status: ResumeStatus,
+    errorMessage: string | null = null,
+  ): Promise<void> {
+    await this.resumeRepo.update(resumeId, { status, errorMessage });
   }
 
   async findOne(id: string): Promise<Resume | null> {
