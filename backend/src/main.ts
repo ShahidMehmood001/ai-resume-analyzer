@@ -13,7 +13,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>("PORT", 3001);
+  // const port = configService.get<number>("PORT", 3001);
+  const port = process.env.PORT || 10000;
   const frontendUrl = configService.get<string>("FRONTEND_URL", "http://localhost:3000");
 
   // CORS — allow frontend origin
