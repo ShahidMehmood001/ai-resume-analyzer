@@ -19,7 +19,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://resume_user:resume_pass@postgres:5432/resume_analyzer
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/resume_analyzer
       NODE_ENV: development
       FRONTEND_URL: http://localhost:3000
     depends_on:
@@ -32,7 +32,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
     depends_on:
       - backend
 
