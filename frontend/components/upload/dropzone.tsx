@@ -61,27 +61,27 @@ export function Dropzone({ onUploaded }: DropzoneProps) {
     );
 
     try {
-      const result = await resumesApi.upload(
-        pending.map((f) => f.file),
-        (pct) =>
+      const ids: string[] = [];
+      for (const item of pending) {
+        const result = await resumesApi.uploadSingle(item.file, (pct) =>
           setItems((prev) =>
             prev.map((f) =>
-              f.status === "uploading" ? { ...f, progress: pct } : f,
+              f.id === item.id ? { ...f, progress: pct } : f,
             ),
           ),
-      );
-
-      const ids: string[] = [];
-      result.files.forEach((r: { resumeId: string; filename: string }) => {
-        ids.push(r.resumeId);
-        setItems((prev) =>
-          prev.map((f) =>
-            f.file.name === r.filename
-              ? { ...f, status: "done", progress: 100, resumeId: r.resumeId }
-              : f,
-          ),
         );
-      });
+        const row = result.files[0];
+        if (row?.resumeId) {
+          ids.push(row.resumeId);
+          setItems((prev) =>
+            prev.map((f) =>
+              f.id === item.id
+                ? { ...f, status: "done", progress: 100, resumeId: row.resumeId }
+                : f,
+            ),
+          );
+        }
+      }
 
       toast.success(`${ids.length} resume${ids.length > 1 ? "s" : ""} uploaded`);
       onUploaded?.(ids);

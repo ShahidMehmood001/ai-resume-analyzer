@@ -19,13 +19,44 @@ export class CandidatesService {
     const qb = this.repo.createQueryBuilder("c").leftJoinAndSelect("c.resumes", "r");
 
     if (query.search) {
+      const s = `%${query.search}%`;
       qb.andWhere(
-        "(c.name ILIKE :search OR c.email ILIKE :search OR c.city ILIKE :search)",
-        { search: `%${query.search}%` },
+        `(
+          c.name ILIKE :search OR c.email ILIKE :search OR c.city ILIKE :search OR c.phone ILIKE :search
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements_text(COALESCE(c.skills::jsonb, '[]'::jsonb)) AS skill
+            WHERE skill ILIKE :search
+          )
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements(COALESCE(c.education::jsonb, '[]'::jsonb)) AS edu
+            WHERE (edu->>'school') ILIKE :search
+               OR (edu->>'major') ILIKE :search
+               OR (edu->>'degree') ILIKE :search
+          )
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements(COALESCE(c."workExperience"::jsonb, '[]'::jsonb)) AS w
+            WHERE (w->>'company') ILIKE :search
+               OR (w->>'position') ILIKE :search
+               OR (w->>'summary') ILIKE :search
+          )
+          OR EXISTS (
+            SELECT 1 FROM jsonb_array_elements(COALESCE(c.projects::jsonb, '[]'::jsonb)) AS p
+            WHERE (p->>'name') ILIKE :search OR (p->>'role') ILIKE :search OR (p->>'highlights') ILIKE :search
+          )
+        )`,
+        { search: s },
       );
     }
     if (query.status) qb.andWhere("c.status = :status", { status: query.status });
-    if (query.skill) qb.andWhere(":skill = ANY(c.skills)", { skill: query.skill });
+    if (query.skill) {
+      qb.andWhere(
+        `EXISTS (
+          SELECT 1 FROM jsonb_array_elements_text(COALESCE(c.skills::jsonb, '[]'::jsonb)) AS skill_tag
+          WHERE skill_tag ILIKE :skillFilter
+        )`,
+        { skillFilter: `%${query.skill}%` },
+      );
+    }
 
     qb.orderBy(`c.${sortBy}`, order as "ASC" | "DESC").skip(skip).take(limit);
 

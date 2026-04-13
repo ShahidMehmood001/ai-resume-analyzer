@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LayoutGrid, Table2, Search, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { LayoutGrid, Table2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { CandidateTable } from "@/components/candidates/candidate-table";
 import { CandidateCard } from "@/components/candidates/candidate-card";
@@ -20,15 +20,17 @@ const LIMIT = 12;
 export default function CandidatesPage() {
   const { viewMode, setViewMode } = useAppStore();
   const [search, setSearch] = useState("");
+  const [skill, setSkill] = useState("");
   const [status, setStatus] = useState("all");
   const [sortBy, setSortBy] = useState("createdAt");
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["candidates", search, status, sortBy, page],
+    queryKey: ["candidates", search, skill, status, sortBy, page],
     queryFn: () =>
       candidatesApi.list({
         ...(search && { search }),
+        ...(skill.trim() && { skill: skill.trim() }),
         ...(status !== "all" && { status }),
         sortBy,
         order: "DESC",
@@ -78,12 +80,19 @@ export default function CandidatesPage() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-muted-foreground)]" />
           <Input
-            placeholder="Search by name, skill, location…"
+            placeholder="Search name, email, skills, school, company…"
             className="pl-9"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
         </div>
+
+        <Input
+          placeholder="Filter by skill tag"
+          className="w-40"
+          value={skill}
+          onChange={(e) => { setSkill(e.target.value); setPage(1); }}
+        />
 
         <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
           <SelectTrigger className="w-40">

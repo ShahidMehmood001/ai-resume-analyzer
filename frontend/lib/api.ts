@@ -41,6 +41,24 @@ export const jobsApi = {
 export const resumesApi = {
   list: () => api.get("/resumes").then((r) => r.data),
   get: (id: string) => api.get(`/resumes/${id}`).then((r) => r.data),
+  /** Absolute URL to stream PDF for embedding (same origin as API base, no /api double prefix). */
+  pdfUrl: (resumeId: string) => {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
+    return `${base.replace(/\/$/, "")}/resumes/${resumeId}/pdf`;
+  },
+  /** One file per request so each upload can report its own progress. */
+  uploadSingle: (file: File, onProgress?: (p: number) => void) => {
+    const fd = new FormData();
+    fd.append("files", file);
+    return api.post("/upload/resumes", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (e) => {
+        if (onProgress && e.total) {
+          onProgress(Math.round((e.loaded * 100) / e.total));
+        }
+      },
+    }).then((r) => r.data as UploadBatchResult);
+  },
   upload: (files: File[], onProgress?: (p: number) => void) => {
     const fd = new FormData();
     files.forEach((f) => fd.append("files", f));
@@ -55,4 +73,9 @@ export const resumesApi = {
     const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001/api";
     return new EventSource(`${base}/upload/resumes/${resumeId}/extract`);
   },
+};
+
+export type UploadBatchResult = {
+  uploaded: number;
+  files: { resumeId: string; filename: string; status: string }[];
 };

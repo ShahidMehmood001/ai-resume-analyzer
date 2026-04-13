@@ -1,11 +1,13 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { Resume, ResumeStatus } from "./entities/resume.entity";
 import { ResumeScore } from "./entities/resume-score.entity";
 import { Candidate } from "../candidates/entities/candidate.entity";
 import { ExtractedResumeData } from "../ai/ai-provider.interface";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
+import { basename, join } from "path";
 
 // Safely import pdf-parse — handles both v1 (function) and v2 (class-based)
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -24,10 +26,22 @@ const pdfParse: (buffer: Buffer) => Promise<{ text: string }> =
 export class ResumesService {
   private readonly logger = new Logger(ResumesService.name);
 
+  /** Normalize line breaks and collapse noisy whitespace from PDF extraction. */
+  static cleanPdfText(text: string): string {
+    return text
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/[\t\f\v]+/g, " ")
+      .replace(/ +/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
   constructor(
     @InjectRepository(Resume) private resumeRepo: Repository<Resume>,
     @InjectRepository(ResumeScore) private scoreRepo: Repository<ResumeScore>,
     @InjectRepository(Candidate) private candidateRepo: Repository<Candidate>,
+    private readonly config: ConfigService,
   ) {}
 
   async createFromFile(file: Express.Multer.File): Promise<Resume> {
@@ -54,7 +68,7 @@ export class ResumesService {
     try {
       const buffer = readFileSync(resume.filePath);
       const parsed = await pdfParse(buffer);
-      resume.rawText = parsed.text;
+      resume.rawText = ResumesService.cleanPdfText(parsed.text);
       resume.status = ResumeStatus.EXTRACTING;
       await this.resumeRepo.save(resume);
       this.logger.log(`Parsed PDF for resume ${resumeId}`);
@@ -98,6 +112,18 @@ export class ResumesService {
       where: { id },
       relations: ["candidate", "scores"],
     });
+  }
+
+  /** Resolve absolute path to stored PDF on disk (multer stores file under UPLOAD_DIR). */
+  resolvePdfAbsolutePath(resume: Resume): string | null {
+    const uploadDir = this.config.get<string>("UPLOAD_DIR", "./uploads");
+    const filename = basename(resume.filePath.replace(/\\/g, "/"));
+    const absPath = join(process.cwd(), uploadDir, filename);
+    if (!existsSync(absPath)) {
+      this.logger.warn(`PDF not found at ${absPath}`);
+      return null;
+    }
+    return absPath;
   }
 
   async findAll() {

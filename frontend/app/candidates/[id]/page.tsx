@@ -4,8 +4,8 @@ import { use, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
-  ArrowLeft, Briefcase, Building2, FolderKanban,
-  GraduationCap, Loader2, Wrench,
+  ArrowLeft, Briefcase, Building2, FileText, FolderKanban,
+  GraduationCap, Loader2, Pencil, Wrench,
 } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,8 @@ import { StatusBadge } from "@/components/candidates/status-badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { candidatesApi, jobsApi } from "@/lib/api";
+import { candidatesApi, jobsApi, resumesApi } from "@/lib/api";
+import { CandidateProfileEditor } from "@/components/candidates/candidate-profile-editor";
 import { formatDate, getScoreColor, cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -29,6 +30,7 @@ export default function CandidateDetailPage({
   const qc = useQueryClient();
   const [selectedJob, setSelectedJob] = useState("");
   const [chartType, setChartType] = useState<"radar" | "bar">("radar");
+  const [editing, setEditing] = useState(false);
 
   const { data: candidate, isLoading } = useQuery({
     queryKey: ["candidate", id],
@@ -45,6 +47,16 @@ export default function CandidateDetailPage({
     onSuccess: () => {
       toast.success("Scoring complete!");
       qc.invalidateQueries({ queryKey: ["candidate", id] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => candidatesApi.update(id, data),
+    onSuccess: () => {
+      toast.success("Profile updated");
+      qc.invalidateQueries({ queryKey: ["candidate", id] });
+      setEditing(false);
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -68,6 +80,7 @@ export default function CandidateDetailPage({
   }
 
   const latestScore = candidate.resumes?.[0]?.scores?.[0] ?? null;
+  const primaryResumeId = candidate.resumes?.[0]?.id;
 
   return (
     <Shell>
@@ -90,7 +103,7 @@ export default function CandidateDetailPage({
               {candidate.name || "Unknown candidate"}
             </h1>
             <p className="mt-0.5 text-sm text-[var(--color-muted-foreground)]">
-              {[candidate.email, candidate.city].filter(Boolean).join(" · ")}
+              {[candidate.email, candidate.phone, candidate.city].filter(Boolean).join(" · ")}
             </p>
             <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
               Uploaded {formatDate(candidate.createdAt)}
@@ -100,10 +113,61 @@ export default function CandidateDetailPage({
         <StatusBadge candidateId={candidate.id} status={candidate.status} />
       </div>
 
+      {primaryResumeId && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-[var(--color-primary)]" />
+              Original resume (PDF)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="mb-2 flex justify-end">
+              <a
+                href={resumesApi.pdfUrl(primaryResumeId)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-medium text-[var(--color-primary)] hover:underline"
+              >
+                Open PDF in new tab
+              </a>
+            </div>
+            <iframe
+              title="Resume PDF preview"
+              src={resumesApi.pdfUrl(primaryResumeId)}
+              className="h-[min(70vh,720px)] w-full rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-muted)]/30"
+            />
+            <p className="mt-2 text-xs text-[var(--color-muted-foreground)]">
+              If the preview is blank, use &quot;Open PDF in new tab&quot; above (some browsers block cross-origin PDF frames).
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Two-column layout */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ── Left: Profile details ─────────────────────────────────────── */}
-        <div className="col-span-2 space-y-5">
+        <div className="space-y-5 lg:col-span-2">
+          <div className="flex justify-end">
+            <Button
+              variant={editing ? "secondary" : "outline"}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setEditing((e) => !e)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {editing ? "Close editor" : "Edit profile"}
+            </Button>
+          </div>
+
+          {editing ? (
+            <CandidateProfileEditor
+              candidate={candidate}
+              onCancel={() => setEditing(false)}
+              onSave={(data) => updateMutation.mutateAsync(data)}
+            />
+          ) : (
+            <>
           {/* Skills */}
           <Card>
             <CardHeader>
@@ -229,10 +293,12 @@ export default function CandidateDetailPage({
               </CardContent>
             </Card>
           )}
+            </>
+          )}
         </div>
 
         {/* ── Right: Scoring ──────────────────────────────────────────────── */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:col-span-1">
           {/* Run scoring */}
           <Card>
             <CardHeader>

@@ -16,7 +16,12 @@ export class CandidatesController {
 
   @Get()
   @ApiOperation({ summary: "List candidates with filtering, sorting and pagination" })
-  @ApiQuery({ name: "search", required: false, description: "Search by name, email, city" })
+  @ApiQuery({
+    name: "search",
+    required: false,
+    description:
+      "Search across name, email, phone, city, skills, education (school/major/degree), work (company/position/summary), projects",
+  })
   @ApiQuery({ name: "status", required: false, enum: ["pending","shortlisted","interviewing","hired","rejected"] })
   @ApiQuery({ name: "skill", required: false, description: "Filter by skill tag" })
   @ApiQuery({ name: "sortBy", required: false, enum: ["createdAt","overallScore","name"] })
