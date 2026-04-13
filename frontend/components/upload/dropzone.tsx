@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { resumesApi } from "@/lib/api";
 import { toast } from "sonner";
+import { PdfThumbnail } from "@/components/upload/pdf-thumbnail";
 
 interface FileItem {
   id: string;
@@ -142,7 +143,7 @@ export function Dropzone({ onUploaded }: DropzoneProps) {
                 item.status === "error" && "border-red-500/30",
               )}
             >
-              <FileText className="h-4 w-4 shrink-0 text-[var(--color-primary)]" />
+              <PdfThumbnail file={item.file} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{item.file.name}</p>
                 <p className="text-xs text-[var(--color-muted-foreground)]">

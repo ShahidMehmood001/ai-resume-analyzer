@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { candidatesApi, jobsApi, resumesApi } from "@/lib/api";
 import { CandidateProfileEditor } from "@/components/candidates/candidate-profile-editor";
+import { MultiJobScorePanel } from "@/components/candidates/multi-job-score-panel";
 import { formatDate, getScoreColor, cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -51,6 +52,18 @@ export default function CandidateDetailPage({
     onError: (e) => toast.error((e as Error).message),
   });
 
+  const batchScoreMutation = useMutation({
+    mutationFn: (jobIds: string[]) =>
+      Promise.all(jobIds.map((jid) => jobsApi.score(jid, id))),
+    onSuccess: (_, jobIds) => {
+      toast.success(
+        `Scored ${jobIds.length} job description${jobIds.length !== 1 ? "s" : ""}`,
+      );
+      qc.invalidateQueries({ queryKey: ["candidate", id] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   const updateMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => candidatesApi.update(id, data),
     onSuccess: () => {
@@ -60,6 +73,30 @@ export default function CandidateDetailPage({
     },
     onError: (e) => toast.error((e as Error).message),
   });
+
+  const scores = useMemo(() => {
+    const raw = candidate?.resumes?.[0]?.scores ?? [];
+    return [...raw].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [candidate]);
+
+  useEffect(() => {
+    if (!scores.length) {
+      setSelectedJob("");
+      return;
+    }
+    setSelectedJob((prev) => {
+      if (prev && scores.some((s) => s.jobId === prev)) return prev;
+      return scores[0].jobId;
+    });
+  }, [scores]);
+
+  const chartScore = selectedJob
+    ? scores.find((s) => s.jobId === selectedJob) ?? null
+    : null;
+  const primaryResumeId = candidate?.resumes?.[0]?.id;
 
   if (isLoading) {
     return (
@@ -78,9 +115,6 @@ export default function CandidateDetailPage({
       </Shell>
     );
   }
-
-  const latestScore = candidate.resumes?.[0]?.scores?.[0] ?? null;
-  const primaryResumeId = candidate.resumes?.[0]?.id;
 
   return (
     <Shell>
@@ -334,12 +368,18 @@ export default function CandidateDetailPage({
             </CardContent>
           </Card>
 
-          {/* Score results */}
-          {latestScore && (
-            <Card>
+          <MultiJobScorePanel
+            jobs={jobs ?? []}
+            scores={scores}
+            scoring={batchScoreMutation.isPending}
+            onScoreSelected={(jobIds) => batchScoreMutation.mutate(jobIds)}
+          />
+
+          {chartScore && (
+            <Card className="animate-[slideUp_0.25s_ease-out]">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle>Score</CardTitle>
+                  <CardTitle>Score detail</CardTitle>
                   <div className="flex items-center gap-1">
                     {(["radar", "bar"] as const).map((t) => (
                       <Button
@@ -354,27 +394,30 @@ export default function CandidateDetailPage({
                     ))}
                   </div>
                 </div>
+                <p className="text-xs font-normal text-[var(--color-muted-foreground)]">
+                  Showing: {chartScore.job?.title ?? "Selected job"}
+                </p>
               </CardHeader>
               <CardContent>
                 {/* Big score */}
                 <div className="mb-4 flex items-center justify-center gap-4">
-                  <ScoreRing score={latestScore.overallScore} size={72} />
+                  <ScoreRing score={chartScore.overallScore} size={72} />
                   <div>
-                    <p className={cn("text-4xl font-bold tabular-nums", getScoreColor(latestScore.overallScore))}>
-                      {latestScore.overallScore.toFixed(0)}
+                    <p className={cn("text-4xl font-bold tabular-nums", getScoreColor(chartScore.overallScore))}>
+                      {chartScore.overallScore.toFixed(0)}
                     </p>
                     <p className="text-xs text-[var(--color-muted-foreground)]">out of 100</p>
                   </div>
                 </div>
 
-                <ScoreChart score={latestScore} type={chartType} />
+                <ScoreChart score={chartScore} type={chartType} />
 
                 {/* Sub-scores */}
                 <div className="mt-4 space-y-2">
                   {[
-                    { label: "Skill match",     value: latestScore.skillMatch },
-                    { label: "Experience",       value: latestScore.experienceRelevance },
-                    { label: "Education",        value: latestScore.educationFit },
+                    { label: "Skill match",     value: chartScore.skillMatch },
+                    { label: "Experience",       value: chartScore.experienceRelevance },
+                    { label: "Education",        value: chartScore.educationFit },
                   ].map(({ label, value }) => (
                     <div key={label} className="flex items-center justify-between text-xs">
                       <span className="text-[var(--color-muted-foreground)]">{label}</span>
@@ -386,9 +429,9 @@ export default function CandidateDetailPage({
                 </div>
 
                 {/* AI comment */}
-                {latestScore.aiComment && (
+                {chartScore.aiComment && (
                   <div className="mt-4 rounded-[var(--radius)] bg-[var(--color-muted)]/50 px-3.5 py-3 text-xs leading-relaxed text-[var(--color-muted-foreground)]">
-                    {latestScore.aiComment}
+                    {chartScore.aiComment}
                   </div>
                 )}
               </CardContent>

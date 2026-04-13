@@ -19,7 +19,7 @@ export default function UploadPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">Upload Resumes</h1>
         <p className="mt-1 text-sm text-[var(--color-muted-foreground)]">
-          Upload PDF resumes for AI-powered parsing and extraction
+          Upload PDF resumes for AI-powered parsing and extraction. Each file shows a first-page thumbnail before upload.
         </p>
       </div>
 

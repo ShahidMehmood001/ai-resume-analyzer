@@ -22,8 +22,8 @@ export function CandidateCard({ candidate: c }: CandidateCardProps) {
   return (
     <Card
       className={cn(
-        "group cursor-pointer transition-all duration-150",
-        "hover:shadow-md hover:border-[var(--color-primary)]/30",
+        "group cursor-pointer transition-all duration-200",
+        "hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--color-primary)]/30",
         selected && "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]/40",
       )}
       onClick={() => toggleSelectCandidate(c.id)}

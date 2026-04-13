@@ -30,6 +30,7 @@ export interface ResumeScore {
   educationFit: number;
   aiComment: string;
   createdAt: string;
+  job?: { id: string; title: string };
 }
 
 export interface Resume {

@@ -65,7 +65,16 @@ export class CandidatesService {
   }
 
   async findOne(id: string): Promise<Candidate> {
-    const c = await this.repo.findOne({ where: { id }, relations: ["resumes", "resumes.scores"] });
+    const c = await this.repo.findOne({
+      where: { id },
+      relations: {
+        resumes: {
+          scores: {
+            job: true,
+          },
+        },
+      },
+    });
     if (!c) throw new NotFoundException(`Candidate ${id} not found`);
     return c;
   }
