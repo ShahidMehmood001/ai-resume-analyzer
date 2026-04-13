@@ -1,68 +1,103 @@
 "use client";
-import { Candidate } from "@/types";
-import { Card, CardContent } from "@/components/ui/card";
+
+import Link from "next/link";
+import { Eye, MapPin, Mail, Phone } from "lucide-react";
+import { type Candidate } from "@/types";
+import { cn, getScoreColor } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScoreRing } from "./score-chart";
 import { StatusBadge } from "./status-badge";
-import { getScoreColor, getScoreBg } from "@/lib/utils";
-import { Eye, MapPin, Mail } from "lucide-react";
-import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store";
 
-export function CandidateCard({ candidate }: { candidate: Candidate }) {
+interface CandidateCardProps {
+  candidate: Candidate;
+}
+
+export function CandidateCard({ candidate: c }: CandidateCardProps) {
   const { selectedCandidates, toggleSelectCandidate } = useAppStore();
-  const selected = selectedCandidates.includes(candidate.id);
+  const selected = selectedCandidates.includes(c.id);
 
   return (
     <Card
       className={cn(
-        "cursor-pointer transition-all hover:shadow-md animate-fade-in",
-        selected && "ring-2 ring-primary",
+        "group cursor-pointer transition-all duration-150",
+        "hover:shadow-md hover:border-[var(--color-primary)]/30",
+        selected && "ring-2 ring-[var(--color-primary)] border-[var(--color-primary)]/40",
       )}
-      onClick={() => toggleSelectCandidate(candidate.id)}
+      onClick={() => toggleSelectCandidate(c.id)}
     >
       <CardContent className="p-5">
-        <div className="flex items-start justify-between mb-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary">
-            {(candidate.name?.[0] ?? "?").toUpperCase()}
-          </div>
-          {candidate.overallScore != null && (
-            <div
-              className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm",
-                getScoreBg(candidate.overallScore),
-              )}
-            >
-              {candidate.overallScore.toFixed(0)}
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/15 text-sm font-bold text-[var(--color-primary)]">
+              {(c.name?.[0] ?? "?").toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-[var(--color-foreground)]">
+                {c.name || "Unknown"}
+              </p>
+              <StatusBadge
+                candidateId={c.id}
+                status={c.status}
+                readOnly
+              />
             </div>
+          </div>
+          {c.overallScore != null && (
+            <ScoreRing score={c.overallScore} size={44} />
           )}
         </div>
 
-        <h3 className="font-semibold truncate">{candidate.name || "Unknown"}</h3>
-
-        {candidate.email && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-            <Mail className="w-3 h-3" /> {candidate.email}
-          </p>
-        )}
-        {candidate.city && (
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            <MapPin className="w-3 h-3" /> {candidate.city}
-          </p>
-        )}
-
-        <div className="flex flex-wrap gap-1 mt-3">
-          {candidate.skills?.slice(0, 4).map((s) => (
-            <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-          ))}
+        {/* Contact */}
+        <div className="space-y-1 mb-4">
+          {c.email && (
+            <p className="flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)] truncate">
+              <Mail className="h-3 w-3 shrink-0" />
+              {c.email}
+            </p>
+          )}
+          {c.phone && (
+            <p className="flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
+              <Phone className="h-3 w-3 shrink-0" />
+              {c.phone}
+            </p>
+          )}
+          {c.city && (
+            <p className="flex items-center gap-1.5 text-xs text-[var(--color-muted-foreground)]">
+              <MapPin className="h-3 w-3 shrink-0" />
+              {c.city}
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center justify-between mt-4">
-          <StatusBadge candidateId={candidate.id} status={candidate.status} />
-          <Link href={`/candidates/${candidate.id}`} onClick={(e) => e.stopPropagation()}>
-            <Button variant="ghost" size="icon">
-              <Eye className="w-4 h-4" />
+        {/* Skills */}
+        {c.skills && c.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-4">
+            {c.skills.slice(0, 5).map((s) => (
+              <Badge key={s} variant="secondary" className="text-[10px]">
+                {s}
+              </Badge>
+            ))}
+            {c.skills.length > 5 && (
+              <Badge variant="outline" className="text-[10px]">
+                +{c.skills.length - 5}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-end border-t border-[var(--color-border)] pt-3 mt-1">
+          <Link
+            href={`/candidates/${c.id}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
+              <Eye className="h-3.5 w-3.5" />
+              View profile
             </Button>
           </Link>
         </div>

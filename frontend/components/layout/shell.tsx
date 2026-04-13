@@ -1,11 +1,19 @@
 import { Sidebar } from "./sidebar";
 
-export function Shell({ children }: { children: React.ReactNode }) {
+interface ShellProps {
+  children: React.ReactNode;
+  /** Optional extra padding override */
+  className?: string;
+}
+
+export function Shell({ children, className }: ShellProps) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-[var(--color-background)]">
       <Sidebar />
-      <main className="flex-1 ml-64 min-h-screen bg-background">
-        <div className="max-w-7xl mx-auto px-6 py-8">{children}</div>
+      <main className="flex-1 pl-60 min-h-screen">
+        <div className={`mx-auto max-w-screen-xl px-8 py-7 ${className ?? ""}`}>
+          {children}
+        </div>
       </main>
     </div>
   );
