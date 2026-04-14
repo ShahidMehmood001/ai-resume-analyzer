@@ -19,9 +19,9 @@ async function bootstrap() {
 
   // CORS — allow frontend origin
   app.enableCors({
-    origin: [frontendUrl, "http://localhost:3000", "http://localhost:3001"],
+    origin: true,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    // methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
   app.setGlobalPrefix("api");
