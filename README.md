@@ -2,8 +2,17 @@
 
 An AI-powered full-stack platform for uploading, parsing, and intelligently scoring resumes against job descriptions — built for the Sidereus AI engineering assessment.
 
-**Live Demo:** _Add your deployed URL here_
+**Live Demo:** https://ai-resume-analyzer-smoky-nine.vercel.app
 **GitHub:** [ShahidMehmood001/ai-resume-analyzer](https://github.com/ShahidMehmood001/ai-resume-analyzer)
+
+---
+
+## 🚀 Live System Architecture
+
+- Frontend: Vercel  
+- Backend: Render  
+- Database: Neon PostgreSQL  
+- AI: Zhipu / Gemini / OpenAI (switchable via env)
 
 ---
 
@@ -75,7 +84,7 @@ ai-resume-analyzer/
 ### Module 2 — AI Extraction (SSE Streaming)
 - Real-time AI extraction streamed via Server-Sent Events
 - Extracts: name, email, phone, city, education, work experience, skills, projects
-- Supports both **Google Gemini** (free tier) and **OpenAI** — configured via `AI_PROVIDER` env var
+- Supports **Google Gemini** (free tier), **OpenAI** and **Zhipu** (free tier) — configured via `AI_PROVIDER` env var
 - Structured JSON output with graceful error handling
 
 ### Module 3 — Job Matching & Scoring
@@ -120,8 +129,8 @@ cd backend
 cp .env.example .env
 # Edit .env:
 # - Set DATABASE_URL (already configured for docker-compose default)
-# - Set AI_PROVIDER=gemini (or openai)
-# - Set GEMINI_API_KEY=your_key  (or OPENAI_API_KEY=your_key)
+# - Set AI_PROVIDER=gemini (or openai or zhipu)
+# - Set GEMINI_API_KEY=your_key  (or OPENAI_API_KEY=your_key or ZHIPU_API_KEY=your_key)
 ```
 
 ### 4. Run the backend
@@ -160,7 +169,6 @@ npm run dev
    AI_PROVIDER=gemini
    GEMINI_API_KEY=your_key
    FRONTEND_URL=https://your-frontend.vercel.app
-   PORT=10000
    ```
 
 Alternatively, use the included `render.yaml` — Render will auto-detect it and configure both the web service and database automatically.
@@ -246,4 +254,5 @@ refactor: extract AI provider interface for OpenAI/Gemini swap
 ## Author
 
 **Shahid Mehmood**
-Backend Engineer (NestJS · Node.js · TypeScript · PostgreSQL)
+FullStack Engineer (Next · React · NestJS · Node.js · TypeScript · PostgreSQL)
+email: shahidawan547@gmail.com
